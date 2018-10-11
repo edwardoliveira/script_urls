@@ -1,8 +1,11 @@
+#!/usr/bin/python
+
 import json
 import time
 import threading
-from urllib import request
-from progress.bar import Bar
+import requests
+import random
+# from progress.bar import Bar
 from datetime import datetime
 
 filename = "lista_urls.txt"
@@ -14,20 +17,25 @@ def create_json(nomeJson, logger):
 def execute_url_list(casa, logger, nomeJson):
     try:
         start = time.time()
-        result = request.urlopen(casa)
+#        print(casa)
+        result = requests.get(casa)
         end = time.time()
-        if result.status != 200:
-            log = {'url':casa,'status':result.status,'tempo':end-start}
-            logger['erros'].append(log)
+#        import ipdb; ipdb.set_trace()
+        if not result.ok:
+            log = {'url':casa,'status':result.status_code,'latency':end-start}
+            logger['errors'].append(log)
+#        else:
+#            print('OK')
     except Exception as e:
         end = time.time()
-        log = {'url':casa, 'status':str(e),'tempo':end-start}
-        logger['erros'].append(log)
-    return (logger)
-    create_json(nomeJson, logger)
+        log = {'url':casa, 'status':str(e),'latency':end-start}
+        logger['errors'].append(log)
+        print('erro: %s' % casa)
+    # create_json(nomeJson, logger)
+    return logger
 
 def threads(casas, logger, nomeJson):
-    bar = Bar('Loading', fill='@', suffix='%(percent)d%%',max= 1000)
+    # bar = Bar('Loading', fill='@', suffix='%(percent)d%%',max= 1000)
 
     threads = [threading.Thread(target=execute_url_list,
               args=(casa,logger, nomeJson, )) for casa in casas]
@@ -35,23 +43,31 @@ def threads(casas, logger, nomeJson):
     print("Start")
     for thread in threads:
         thread.start()
-        bar.next()
+    #    bar.next()
     for thread in threads:
         thread.join()
-    bar.goto(1000)
+    # bar.goto(1000)
 
 
 def main():
-    while(True):
-        logger = {'erros':[]}
-        nomeJson = "{}.json".format(str(datetime.now()))
-        with open(filename) as casas:
-            casas = list(casas)
-            casas = casas[1:]
-        threads(casas, logger, nomeJson)
-        print()
+#    while True:
+        logger = {'errors':[]}
+        nomeJson = "{}.json".format(datetime.now().strftime("%Y%m%dT%H%M"))
+        with open(filename) as f:            
+            casas = f.read().split()
+            random.shuffle(casas)
+            # casas = casas[1:2]
+        start = 0
+        end = 100
+        while True:
+            threads(casas[start:end], logger, nomeJson)
+            print(end)
+            if end > len(casas):
+                break
+            start = end
+            end += 100
         print("Done!")
-        time.sleep(300)
+#        time.sleep(300)
 
 
 
